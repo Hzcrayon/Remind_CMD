@@ -289,6 +289,64 @@ function Format-TimeSpanHuman {
     return ($parts -join ' ')
 }
 
+function Get-DisplayWidth {
+    param([string]$Text)
+
+    if ([string]::IsNullOrEmpty($Text)) { return 0 }
+
+    $width = 0
+    foreach ($ch in $Text.ToCharArray()) {
+        $code = [int][char]$ch
+        if (
+            ($code -ge 0x1100 -and $code -le 0x115F) -or
+            ($code -ge 0x2E80 -and $code -le 0xA4CF) -or
+            ($code -ge 0xAC00 -and $code -le 0xD7A3) -or
+            ($code -ge 0xF900 -and $code -le 0xFAFF) -or
+            ($code -ge 0xFE10 -and $code -le 0xFE19) -or
+            ($code -ge 0xFE30 -and $code -le 0xFE6F) -or
+            ($code -ge 0xFF00 -and $code -le 0xFF60) -or
+            ($code -ge 0xFFE0 -and $code -le 0xFFE6)
+        ) {
+            $width += 2
+        }
+        else {
+            $width += 1
+        }
+    }
+
+    return $width
+}
+
+function Format-DisplayCell {
+    param(
+        [string]$Text,
+        [int]$Width
+    )
+
+    if ($null -eq $Text) { $Text = '' }
+
+    $result = ''
+    $currentWidth = 0
+    foreach ($ch in $Text.ToCharArray()) {
+        $charWidth = Get-DisplayWidth -Text ([string]$ch)
+        if (($currentWidth + $charWidth) -gt $Width) { break }
+        $result += $ch
+        $currentWidth += $charWidth
+    }
+
+    if ((Get-DisplayWidth -Text $Text) -gt $Width -and $Width -ge 2) {
+        while ($currentWidth -gt ($Width - 2) -and $result.Length -gt 0) {
+            $last = $result.Substring($result.Length - 1, 1)
+            $result = $result.Substring(0, $result.Length - 1)
+            $currentWidth -= Get-DisplayWidth -Text $last
+        }
+        $result += '..'
+        $currentWidth += 2
+    }
+
+    return $result + (' ' * [Math]::Max(0, $Width - $currentWidth))
+}
+
 function New-ShortId {
     return ([guid]::NewGuid().ToString('N')).Substring(0, 8)
 }
@@ -389,17 +447,33 @@ function Show-ReminderList {
         return
     }
 
+    $idWidth = 10
+    $messageWidth = 22
+    $triggerWidth = 19
+    $remainingWidth = 12
+    $lineWidth = $idWidth + $messageWidth + $triggerWidth + $remainingWidth + 5
+
+    Write-Host ''
+    Write-Host ('  ' +
+        (Format-DisplayCell -Text 'ID' -Width $idWidth) + ' ' +
+        (Format-DisplayCell -Text 'Message' -Width $messageWidth) + ' ' +
+        (Format-DisplayCell -Text 'Trigger' -Width $triggerWidth) + ' ' +
+        (Format-DisplayCell -Text 'Remaining' -Width $remainingWidth)
+    ) -ForegroundColor Yellow
+    Write-Host ('  ' + ('-' * $lineWidth)) -ForegroundColor DarkGray
+
     foreach ($item in ($reminders | Sort-Object { [datetime]::Parse($_.triggerTime) })) {
         $trigger = [datetime]::Parse($item.triggerTime)
         $remaining = $trigger - $now
         $remainText = if ($remaining.TotalSeconds -gt 0) { Format-TimeSpanHuman -Span $remaining } else { 'soon' }
         $msg = [string]$item.message
 
-        Write-Host ''
-        Write-Host "  ID:        $($item.id)" -ForegroundColor Yellow
-        Write-Host "  Message:   $msg"
-        Write-Host "  Trigger:   $($item.triggerTime)"
-        Write-Host "  Remaining: $remainText"
+        Write-Host ('  ' +
+            (Format-DisplayCell -Text $item.id -Width $idWidth) + ' ' +
+            (Format-DisplayCell -Text $msg -Width $messageWidth) + ' ' +
+            (Format-DisplayCell -Text $item.triggerTime -Width $triggerWidth) + ' ' +
+            (Format-DisplayCell -Text $remainText -Width $remainingWidth)
+        )
     }
 
     Write-Host ''
