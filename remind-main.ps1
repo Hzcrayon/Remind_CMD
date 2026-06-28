@@ -389,18 +389,17 @@ function Show-ReminderList {
         return
     }
 
-    Write-Host ''
-    Write-Host ('  {0,-10} {1,-22} {2,-19} {3}' -f 'ID', 'Message', 'Trigger', 'Remaining') -ForegroundColor Yellow
-    Write-Host ('  ' + ('-' * 58)) -ForegroundColor DarkGray
-
     foreach ($item in ($reminders | Sort-Object { [datetime]::Parse($_.triggerTime) })) {
         $trigger = [datetime]::Parse($item.triggerTime)
         $remaining = $trigger - $now
         $remainText = if ($remaining.TotalSeconds -gt 0) { Format-TimeSpanHuman -Span $remaining } else { 'soon' }
         $msg = [string]$item.message
-        if ($msg.Length -gt 20) { $msg = $msg.Substring(0, 18) + '..' }
 
-        Write-Host ('  {0,-10} {1,-22} {2,-19} {3}' -f $item.id, $msg, $item.triggerTime, $remainText)
+        Write-Host ''
+        Write-Host "  ID:        $($item.id)" -ForegroundColor Yellow
+        Write-Host "  Message:   $msg"
+        Write-Host "  Trigger:   $($item.triggerTime)"
+        Write-Host "  Remaining: $remainText"
     }
 
     Write-Host ''
