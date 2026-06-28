@@ -160,10 +160,4 @@ remind cancel all
 
 ## Version / 版本
 
-Current version: `v1.0.0`
-
-## License / 许可证
-
-No license has been added yet. If you plan to share this project publicly, consider adding a license file.
-
-目前还没有添加许可证。如果你打算公开分享这个项目，建议之后添加一个开源许可证文件。
+Current version: `v1.0`
